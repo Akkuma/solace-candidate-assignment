@@ -16,11 +16,20 @@
     "studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.1.11",
+    "@radix-ui/react-popover": "^1.1.10",
+    "@radix-ui/react-select": "^2.2.2",
+    "@radix-ui/react-slot": "^1.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.42.0",
+    "lucide-react": "^0.501.0",
     "next": "^14.2.19",
     "postgres": "^3.4.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.2.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
