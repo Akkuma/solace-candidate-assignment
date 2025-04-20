@@ -10,8 +10,8 @@ const advocates = pgTable("advocates", {
   specialties: text("specialties").array().default([]).notNull(),
   yearsOfExperience: integer("years_of_experience").notNull(),
   // Based on https://www.mayerdan.com/programming/2017/06/26/db_phone_types &
-	// https://github.com/google/libphonenumber/blob/d89d07b8dabd6b6694d55b8f17319e5caa23ef18/FALSEHOODS.md
-	phoneNumber: varchar("phone_number", { length: 18 }).notNull(),
+  // https://github.com/google/libphonenumber/blob/d89d07b8dabd6b6694d55b8f17319e5caa23ef18/FALSEHOODS.md
+  phoneNumber: varchar("phone_number", { length: 18 }).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
