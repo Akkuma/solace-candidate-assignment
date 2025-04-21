@@ -26,6 +26,8 @@ async function main() {
           generatedDigitsNumbers: 7,
         }),
         specialties: fns.jobTitle({ arraySize: 4 }),
+        // This is a placeholder so seeding can still work
+        search: fns.string(),
       },
     },
   }));
