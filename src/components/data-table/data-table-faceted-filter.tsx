@@ -1,5 +1,3 @@
-"use client";
-
 import { CheckIcon, PlusCircledIcon } from "@radix-ui/react-icons";
 import { type Column } from "@tanstack/react-table";
 import { titleCase } from "moderndash";
@@ -20,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column: Column<TData, TValue>;
@@ -30,71 +28,31 @@ interface DataTableFacetedFilterProps<TData, TValue> {
     value: string;
     icon?: React.ComponentType<{ className?: string }>;
   }[];
+  filterValues: unknown[] | undefined;
 }
 
-// Create stable references
-const unopenedOptions = [] as const;
-const unopenedFacets = new Map();
-
-// If we memoize at this level we have to internally maintain the selected values.
-// This would also run into issues with the global filter reset requiring more work.
-export function DataTableFacetedFilter<TData, TValue>({
+export const DataTableFacetedFilter = memo(function DataTableFacetedFilter<TData, TValue>({
   column,
   title = column.columnDef.meta?.title || titleCase(column.id),
   options: customOptions,
+  filterValues = [],
 }: DataTableFacetedFilterProps<TData, TValue>) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const filterValues = column.getFilterValue() as unknown[] | undefined;
-  const selectedValues = useMemo(() => new Set(filterValues || []), [filterValues]);
+  const selectedValues = useMemo(() => new Set(filterValues), [filterValues]);
   const facets = column.getFacetedUniqueValues();
-  const options = customOptions || isOpen ? defaultOptions(facets) : unopenedOptions;
-
-  const sortedOptions = useMemo(() => {
-    return options.toSorted((a, b) => {
-      if (selectedValues.has(a.value) && !selectedValues.has(b.value)) return -1;
-      if (!selectedValues.has(a.value) && selectedValues.has(b.value)) return 1;
-      if (typeof a.value === "number" && typeof b.value === "number") return a.value > b.value ? 1 : -1;
-      return a.value?.toString().localeCompare(b.value?.toString() ?? "") ?? 0;
-    });
-    // We specifically want the ordering to remain static until we reopen
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options, isOpen]);
+  const options = customOptions || defaultOptions(column.getFacetedUniqueValues());
+  const [sortedOptions, setSortedOptions] = useState(() => sortOptions(options, selectedValues));
 
   return (
-    <MemoizedFilter
-      setIsOpen={setIsOpen}
-      column={column}
-      title={title}
-      options={sortedOptions}
-      selectedValues={selectedValues}
-      facets={facets}
-    />
-  );
-}
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) return;
 
-interface MemoizedFilter {
-  column: Column<any>;
-  setIsOpen: (open: boolean) => unknown;
-  title: string;
-  selectedValues: Set<unknown>;
-  options: {
-    label: string;
-    value: Primitive;
-    icon?: React.ComponentType<{ className?: string }>;
-  }[];
-  facets: Map<unknown, number>;
-}
-const MemoizedFilter = memo(function MemoizedFilter({
-  setIsOpen,
-  title,
-  selectedValues,
-  options,
-  column,
-  facets,
-}: MemoizedFilter) {
-  console.log("Filter rend");
-  return (
-    <Popover onOpenChange={setIsOpen}>
+        // Initial options are [] while loading so we need to use the current faceted unique values
+        setSortedOptions(
+          sortOptions(customOptions || defaultOptions(column.getFacetedUniqueValues()), selectedValues),
+        );
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 border-dashed">
           <PlusCircledIcon className="mr-2 h-4 w-4" />
@@ -111,7 +69,7 @@ const MemoizedFilter = memo(function MemoizedFilter({
                     {selectedValues.size} selected
                   </Badge>
                 ) : (
-                  options
+                  sortedOptions
                     .filter((option) => selectedValues.has(option.value))
                     .map(({ label, value }) => (
                       <Badge
@@ -134,7 +92,7 @@ const MemoizedFilter = memo(function MemoizedFilter({
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
-              {options.map((opt) => {
+              {sortedOptions.map((opt) => {
                 const { label, value } = opt;
                 const isSelected = selectedValues.has(value);
                 return (
@@ -161,9 +119,7 @@ const MemoizedFilter = memo(function MemoizedFilter({
                     {opt.icon && <opt.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
                     <span>{label}</span>
                     {facets.get(value) && (
-                      <span className="ml-auto flex h-4 w-4 items-center justify-center font-mono text-xs">
-                        {facets.get(value)}
-                      </span>
+                      <span className="ml-auto font-mono text-xs">{facets.get(value)}</span>
                     )}
                   </CommandItem>
                 );
@@ -177,6 +133,8 @@ const MemoizedFilter = memo(function MemoizedFilter({
                 <CommandItem
                   onSelect={() => {
                     column.setFilterValue(undefined);
+                    selectedValues.clear();
+                    setSortedOptions(sortOptions(sortedOptions, selectedValues));
                   }}
                   className="justify-center text-center"
                 >
@@ -191,26 +149,27 @@ const MemoizedFilter = memo(function MemoizedFilter({
   );
 });
 
-const optsCache = new Map<string, { label: string; value: Primitive; icon: undefined }[]>();
-const defaultOptions = (facets: Map<string, number>) => {
-  const keys = [...facets.keys()];
-  if (keys.length === 0) return [];
-
-  const key = keys.reduce((acc, key) => `${acc},${key}`);
-  const opts = optsCache.get(key);
-
-  if (opts) {
-    return opts;
-  }
-
-  const defaultOpts = keys.map((key) => {
+const defaultOptions = (facets: Map<unknown, number>) => {
+  return [...facets.entries()].map(([key]) => {
     return {
-      label: key, //capitalize((key as Primitive)?.toString() || ''),
+      label: (key as Primitive)?.toString() || "",
       value: key as Primitive,
       icon: undefined,
     };
   });
+};
 
-  optsCache.set(key, defaultOpts);
-  return defaultOpts;
+const sortOptions = (
+  opts:
+    | NonNullable<DataTableFacetedFilterProps<unknown, unknown>["options"]>
+    | ReturnType<typeof defaultOptions>,
+  selectedValues: Set<unknown>,
+) => {
+  return opts.toSorted((a, b) => {
+    if (selectedValues.has(a.value) && !selectedValues.has(b.value)) return -1;
+    if (!selectedValues.has(a.value) && selectedValues.has(b.value)) return 1;
+    if (typeof a.value === "number" && typeof b.value === "number") return a.value - b.value;
+    if (typeof a.value === "string" && typeof b.value === "string") return a.value.localeCompare(b.value);
+    return 0;
+  });
 };

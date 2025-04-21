@@ -1,7 +1,7 @@
 "use client";
 
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { titleCase } from "moderndash";
+import { debounce, titleCase } from "moderndash";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,50 +50,51 @@ const FiltersContainer = ({ children }: React.PropsWithChildren) => {
 const InputFilter = ({ placeholder }: { placeholder?: string }) => {
   const table = useDataTable();
 
-  let inputPlaceholder = placeholder;
-  if (!placeholder) {
-    const titles = table
-      .getAllColumns()
-      .filter((column) => column.getCanGlobalFilter())
-      .flatMap((column) => column.columnDef.meta?.title || titleCase(column.id));
+  const input = useMemo(() => {
+    let inputPlaceholder = placeholder;
+    if (!placeholder) {
+      const titles = table
+        .getAllColumns()
+        .flatMap((column) => column.columnDef.meta?.title || titleCase(column.id));
 
-    if (titles.length > 1) {
-      titles[titles.length - 1] = `or ${titles.at(-1)}`;
+      if (titles.length > 1) {
+        titles[titles.length - 1] = `or ${titles.at(-1)}`;
+      }
+
+      inputPlaceholder = `Filter by ${titles.join(", ")}`;
     }
-
-    inputPlaceholder = `Filter by ${titles.join(", ")}`;
-  }
-
-  const globalFilter = (table.getState().globalFilter as string | undefined) ?? "";
-  const input = useMemo(
-    () => (
+    return (
       <div className="w-full max-w-md">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4" />
           <Input
             placeholder={inputPlaceholder}
-            value={globalFilter}
-            onChange={(event) => {
+            onChange={debounce((event) => {
               table.setGlobalFilter(event.target.value);
-            }}
+            }, 200)}
             className="pl-8 h-8"
           />
         </div>
       </div>
-    ),
-    [table, inputPlaceholder, globalFilter],
-  );
+    );
+  }, [table]);
   return input;
 };
 
 const FacetedFilters = () => {
   const table = useDataTable();
+
   return table.getAllColumns().flatMap((column) => {
     const { meta } = column.columnDef;
     if (!meta) return [];
 
     return meta.enableFacets ? (
-      <DataTableFacetedFilter key={column.id} column={column} options={meta.facets} />
+      <DataTableFacetedFilter
+        key={column.id}
+        column={column}
+        options={meta.facets}
+        filterValues={column.getFilterValue() as unknown[]}
+      />
     ) : (
       []
     );

@@ -5,21 +5,27 @@ import { advocates } from "../schema";
 import { advocateData } from "./advocates";
 
 const uniqueDegrees = new Set(advocateData.map((advocate) => advocate.degree));
+const uniqueCities = new Set(advocateData.map((advocate) => advocate.city));
+
+const seedCount = process.env.SEED_COUNT ? parseInt(process.env.SEED_COUNT) : 100_000;
 async function main() {
   console.info("Seeding DB");
   await seed(db, { advocates }).refine((fns) => ({
     advocates: {
-      count: 100_000,
+      count: seedCount,
       columns: {
         id: fns.intPrimaryKey(),
         firstName: fns.firstName(),
         lastName: fns.lastName(),
-        city: fns.city(),
+        city: fns.valuesFromArray({ values: [...uniqueCities] }),
         createdAt: fns.timestamp(),
         degree: fns.valuesFromArray({ values: [...uniqueDegrees] }),
         yearsOfExperience: fns.int({ minValue: 1, maxValue: 20 }),
-        phoneNumber: fns.phoneNumber(),
-        // specialities eventually can be added once the new version of drizzle-seed adds support for no repeats
+        phoneNumber: fns.phoneNumber({
+          prefixes: ["+1562", "+1732", "+1212", "+1505"],
+          generatedDigitsNumbers: 7,
+        }),
+        specialties: fns.jobTitle({ arraySize: 4 }),
       },
     },
   }));

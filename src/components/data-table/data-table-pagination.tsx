@@ -57,8 +57,9 @@ export function DataTablePagination<TData>({ includeSelectedCount }: DataTablePa
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+        <div className="min-w-[115px] text-sm font-medium">
+          Page <span className="tabular-nums">{table.getState().pagination.pageIndex + 1}</span> of{" "}
+          {table.getPageCount()}
         </div>
         <div className="flex items-center space-x-2">
           <Button

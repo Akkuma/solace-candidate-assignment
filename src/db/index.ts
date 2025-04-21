@@ -26,14 +26,14 @@ const setup = () => {
 
 config({ path: [".env.local", ".env"] });
 
-export let queryClient: postgres.Sql<{}> | undefined = undefined;
+export let sql: postgres.Sql<{}> | undefined = undefined;
 if (process.env.DATABASE_URL) {
-  queryClient = postgres(process.env.DATABASE_URL);
+  sql = postgres(process.env.DATABASE_URL);
 } else {
   console.warn("DATABASE_URL is not set");
 }
 
-export const db = queryClient
-  ? drizzle({ client: queryClient, schema: { advocates } })
+export const db = sql
+  ? drizzle({ client: sql, schema: { advocates } })
   : // Drizzle has their own mocking
     drizzle.mock({ schema: { advocates } });
